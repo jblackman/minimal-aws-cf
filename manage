@@ -1,0 +1,63 @@
+#!/bin/bash
+
+set -euo pipefail
+
+[ -f creds ] || { echo "You need to configure creds (see creds.sample) before doing anything"; exit 1; }
+source creds
+
+function certs {
+  mkdir -p certs
+  openssl req -x509 -newkey rsa:2048 -keyout certs/key.pem -out certs/cert.pem -nodes -days 365 \
+    -subj "/C=GB/ST=London/L=London/O=MyOrg/OU=CF/CN=${SYSTEM_DOMAIN}"
+}
+
+function bbl_up {
+  bbl plan --lb-type cf --lb-domain "${SYSTEM_DOMAIN}" --lb-cert certs/cert.pem --lb-key certs/key.pem
+  bbl up
+}
+
+function bbl_env {
+  eval "$(bbl print-env)"
+}
+
+function runtime_config {
+  bbl_env
+  bosh -n update-runtime-config bosh-deployment/runtime-configs/dns.yml --name dns
+}
+
+function upload_stemcell {
+  bbl_env
+  STEMCELL_VERSION=$(bosh interpolate cf-deployment/cf-deployment.yml --path /stemcells/alias=default/version)
+
+  bosh \
+    upload-stemcell \
+    https://bosh-aws-light-stemcells.s3-accelerate.amazonaws.com/${STEMCELL_VERSION}/light-bosh-stemcell-${STEMCELL_VERSION}-aws-xen-hvm-ubuntu-xenial-go_agent.tgz
+}
+
+function cf_deploy {
+  bbl_env
+  bosh -n -d cf deploy cf-deployment/cf-deployment.yml \
+    -o cf-deployment/operations/aws.yml \
+    -o cf-deployment/operations/use-compiled-releases.yml \
+    -o cf-deployment/operations/scale-to-one-az.yml \
+    -v system_domain=${SYSTEM_DOMAIN}
+}
+
+function cf_password {
+  credhub get -n /bosh-${BBL_ENV_NAME}/cf/cf_admin_password --quiet
+}
+
+function cf_login {
+  bbl_env
+  cf login --skip-ssl-validation  -a https://api.${SYSTEM_DOMAIN} -u admin -p $(cf_password)
+}
+
+case $1 in
+  certs) certs;;
+  bbl_up) bbl_up;;
+  runtime-config) runtime_config;;
+  upload-stemcell) upload_stemcell;;
+  cf-deploy) cf_deploy;;
+  cf-password) cf_password;;
+  cf-login) cf_login;;
+esac
