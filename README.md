@@ -2,6 +2,14 @@
 
 This repository contains scripts to quickly stand up/tear down a minimal AWS Cloud Foundry instance.
 
+## Pre-requisites
+
+1. AWS account
+2. [cf CLI](https://github.com/cloudfoundry/cli)
+3. [bosh CLI](https://bosh.io/docs/cli-v2-install/)
+4. [bbl CLI])(https://github.com/cloudfoundry/bosh-bootloader)
+5. make
+
 ## Configuration
 
 1. Get an AWS access key pair
