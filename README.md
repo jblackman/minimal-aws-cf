@@ -11,8 +11,8 @@ This repository contains scripts to quickly stand up/tear down a minimal AWS Clo
 ## Create BOSH and CF
 
 ```sh
-  make prepare
-  make up
+make prepare
+make up
 ```
 
 ## Tear everything down when finished
